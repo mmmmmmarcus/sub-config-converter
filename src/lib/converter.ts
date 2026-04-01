@@ -19,6 +19,14 @@ type ClashConfig = {
   [key: string]: unknown;
 };
 
+type RawSurgeGroup = {
+  name: string;
+  rawType: string;
+  type: string;
+  proxies: string[];
+  options: Record<string, unknown>;
+};
+
 type SurgeConfig = {
   general: Record<string, string>;
   proxies: string[];
@@ -56,6 +64,12 @@ function coerceScalar(value: string): unknown {
   if (trimmed === "false") return false;
   if (/^\d+$/.test(trimmed)) return Number(trimmed);
   return trimmed.replace(/^"|"$/g, "");
+}
+
+function normalizeVmessCipher(value: string): string {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "chacha20-ietf-poly1305") return "auto";
+  return value;
 }
 
 function detectFormat(content: string): "clash" | "surge" {
@@ -131,6 +145,53 @@ function parseSurge(content: string): SurgeConfig {
   };
 }
 
+function parseSurgeGroup(line: string): RawSurgeGroup {
+  const eqIndex = line.indexOf("=");
+  if (eqIndex === -1) {
+    return { name: line.trim(), rawType: "select", type: "select", proxies: [], options: {} };
+  }
+
+  const name = line.slice(0, eqIndex).trim();
+  const parts = splitCsvLike(line.slice(eqIndex + 1));
+  const rawType = String(parts.shift() || "select").toLowerCase();
+  const type = rawType === "smart" ? "select" : rawType;
+  const proxies: string[] = [];
+  const options: Record<string, unknown> = {};
+
+  for (const item of parts) {
+    const idx = item.indexOf("=");
+    if (idx > -1) {
+      const key = item.slice(0, idx).trim();
+      const value = item.slice(idx + 1).trim();
+      options[key] = coerceScalar(value);
+    } else {
+      proxies.push(item);
+    }
+  }
+
+  return { name, rawType, type, proxies, options };
+}
+
+function buildRegexFromPolicyFilter(pattern: string): RegExp | null {
+  try {
+    return new RegExp(pattern);
+  } catch {
+    return null;
+  }
+}
+
+function unique(items: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const item of items) {
+    const key = item.trim();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(key);
+  }
+  return out;
+}
+
 function surgeProxyLineToClash(line: string): ProxyLike {
   const eqIndex = line.indexOf("=");
   if (eqIndex === -1) return { name: line.trim(), type: "unknown", raw: line.trim() };
@@ -153,7 +214,7 @@ function surgeProxyLineToClash(line: string): ProxyLike {
 
     if (type === "vmess") {
       if (key === "username") proxy.uuid = value;
-      else if (key === "encrypt-method") proxy.cipher = value;
+      else if (key === "encrypt-method") proxy.cipher = normalizeVmessCipher(value);
       else if (key === "tls") proxy.tls = coerceScalar(value);
       else if (key === "sni") {
         proxy.servername = value;
@@ -192,32 +253,73 @@ function surgeProxyLineToClash(line: string): ProxyLike {
   return proxy;
 }
 
-function surgeGroupLineToClash(line: string): GroupLike {
-  const eqIndex = line.indexOf("=");
-  if (eqIndex === -1) return { name: line.trim(), type: "select", proxies: [] };
+function surgeGroupsToClash(lines: string[], proxyNames: string[]): GroupLike[] {
+  const rawGroups = lines.map(parseSurgeGroup);
+  const groupsByName = new Map(rawGroups.map((group) => [group.name, group]));
+  const resolvedByName = new Map<string, string[]>();
 
-  const name = line.slice(0, eqIndex).trim();
-  const parts = splitCsvLike(line.slice(eqIndex + 1));
-  const rawType = String(parts.shift() || "select").toLowerCase();
-  const downgradeType = rawType === "smart" ? "select" : rawType;
+  function resolveGroupMembers(groupName: string, stack = new Set<string>()): string[] {
+    if (resolvedByName.has(groupName)) return resolvedByName.get(groupName) || [];
+    if (stack.has(groupName)) return [];
 
-  const group: GroupLike = { name, type: downgradeType, proxies: [] as string[] };
-  const proxies: string[] = [];
+    const group = groupsByName.get(groupName);
+    if (!group) return [];
 
-  for (const item of parts) {
-    const idx = item.indexOf("=");
-    if (idx > -1) {
-      const key = item.slice(0, idx).trim();
-      const value = item.slice(idx + 1).trim();
-      group[key] = coerceScalar(value);
-    } else {
-      proxies.push(item);
+    stack.add(groupName);
+    let members = [...group.proxies];
+
+    const includeAll = Boolean(group.options["include-all-proxies"]);
+    if (includeAll) {
+      members.push(...proxyNames);
     }
+
+    const includeOtherGroup = group.options["include-other-group"];
+    if (typeof includeOtherGroup === "string" && includeOtherGroup.trim()) {
+      for (const ref of includeOtherGroup.split(":").flatMap((item) => item.split(",")).map((v) => v.trim()).filter(Boolean)) {
+        members.push(ref);
+        members.push(...resolveGroupMembers(ref, new Set(stack)));
+      }
+    }
+
+    const regexFilter = typeof group.options["policy-regex-filter"] === "string"
+      ? buildRegexFromPolicyFilter(String(group.options["policy-regex-filter"]))
+      : null;
+
+    if (regexFilter) {
+      const preserved = members.filter((item) => ["DIRECT", "REJECT"].includes(item) || groupsByName.has(item));
+      const candidateNodes = unique([...members, ...proxyNames]).filter((item) => proxyNames.includes(item));
+      const filteredNodes = candidateNodes.filter((name) => regexFilter.test(name));
+      members = [...preserved, ...filteredNodes];
+    }
+
+    members = unique(members);
+    resolvedByName.set(groupName, members);
+    return members;
   }
 
-  group.proxies = proxies;
-  if (rawType === "smart") group["x-surge-original-type"] = "smart";
-  return group;
+  return rawGroups.map((group) => {
+    let proxies = resolveGroupMembers(group.name);
+
+    if (proxies.length === 0 && typeof group.options["include-other-group"] === "string") {
+      proxies = [String(group.options["include-other-group"])];
+    }
+
+    if (proxies.length === 0 && group.rawType === "smart") {
+      proxies = ["DIRECT", ...proxyNames];
+    }
+
+    const clashGroup: GroupLike = {
+      name: group.name,
+      type: group.type,
+      proxies,
+    };
+
+    if (group.rawType === "smart") clashGroup["x-surge-original-type"] = "smart";
+    for (const [key, value] of Object.entries(group.options)) {
+      clashGroup[key] = value;
+    }
+    return clashGroup;
+  });
 }
 
 function clashProxyToSurgeLine(proxy: ProxyLike): string {
@@ -303,6 +405,20 @@ function clashRuleToSurgeLine(rule: unknown): string {
 
 function surgeRuleToClashLine(rule: string): string {
   const cleaned = rule.split("//")[0].trim();
+  if (!cleaned) return "";
+
+  const ruleType = cleaned.split(",")[0].trim().toUpperCase();
+  const unsupportedTypes = new Set([
+    "USER-AGENT",
+    "RULE-SET",
+    "URL-REGEX",
+    "DEVICE-NAME",
+    "DEST-PORT",
+    "IN-PORT",
+    "PROTOCOL",
+  ]);
+
+  if (unsupportedTypes.has(ruleType)) return "";
   if (cleaned.startsWith("FINAL,")) return cleaned.replace(/^FINAL,/, "MATCH,");
   return cleaned;
 }
@@ -313,6 +429,10 @@ export function convertConfig(content: string, target: "clash" | "surge"): strin
 
   if (source === "surge" && target === "clash") {
     const parsed = parseSurge(content);
+    const clashProxies = parsed.proxies.map(surgeProxyLineToClash);
+    const proxyNames = clashProxies.map((proxy) => String(proxy.name || "")).filter(Boolean);
+    const clashGroups = surgeGroupsToClash(parsed.groups, proxyNames);
+
     const clash: ClashConfig = {
       port: parsed.general["port"] ? Number(parsed.general["port"]) : undefined,
       socksPort: parsed.general["socks-port"] ? Number(parsed.general["socks-port"]) : undefined,
@@ -321,8 +441,8 @@ export function convertConfig(content: string, target: "clash" | "surge"): strin
       mode: parsed.general.mode || "rule",
       logLevel: parsed.general.loglevel || "info",
       ipv6: parsed.general.ipv6 === "true",
-      proxies: parsed.proxies.map(surgeProxyLineToClash),
-      "proxy-groups": parsed.groups.map(surgeGroupLineToClash),
+      proxies: clashProxies,
+      "proxy-groups": clashGroups,
       rules: parsed.rules.map(surgeRuleToClashLine).filter(Boolean),
     };
 
