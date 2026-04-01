@@ -21,6 +21,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       output,
       filename: file.name.replace(/\.[^.]+$/, "") + (target === "clash" ? ".yaml" : ".conf"),
+      mimeType: target === "clash" ? "application/x-yaml;charset=utf-8" : "text/plain;charset=utf-8",
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "转换失败。";

@@ -10,13 +10,14 @@ export default function Home() {
   const [target, setTarget] = useState<TargetFormat>("surge");
   const [output, setOutput] = useState("");
   const [downloadName, setDownloadName] = useState("converted.conf");
+  const [downloadMime, setDownloadMime] = useState("text/plain;charset=utf-8");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const downloadUrl = useMemo(() => {
     if (!output) return "";
-    return URL.createObjectURL(new Blob([output], { type: "text/plain;charset=utf-8" }));
-  }, [output]);
+    return URL.createObjectURL(new Blob([output], { type: downloadMime }));
+  }, [output, downloadMime]);
 
   const onFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const nextFile = event.target.files?.[0] || null;
@@ -52,6 +53,7 @@ export default function Home() {
 
       setOutput(data.output);
       setDownloadName(data.filename || (target === "clash" ? "converted.yaml" : "converted.conf"));
+      setDownloadMime(data.mimeType || (target === "clash" ? "application/x-yaml;charset=utf-8" : "text/plain;charset=utf-8"));
     } catch (err) {
       setError(err instanceof Error ? err.message : "转换失败");
       setOutput("");
@@ -71,7 +73,7 @@ export default function Home() {
         <form className={styles.card} onSubmit={onSubmit}>
           <label className={styles.uploadBox}>
             <span>选择配置文件</span>
-            <input type="file" accept=".conf,.yaml,.yml,.txt" onChange={onFileChange} />
+            <input type="file" accept=".conf,.yaml,.yml,.txt,text/plain,application/x-yaml,text/yaml" onChange={onFileChange} />
             <strong>{file ? file.name : "点击选择文件"}</strong>
           </label>
 
