@@ -9,11 +9,14 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "ini": "^6.0.0",
+    "js-yaml": "^4.1.1",
     "next": "16.2.2",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
