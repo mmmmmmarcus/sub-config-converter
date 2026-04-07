@@ -269,16 +269,17 @@ function surgeGroupsToClash(lines: string[], proxyNames: string[]): GroupLike[] 
     let members = [...group.proxies];
 
     const includeAll = Boolean(group.options["include-all-proxies"]);
+    const includeOtherGroup = group.options["include-other-group"];
+    const includeOtherGroups = typeof includeOtherGroup === "string" && includeOtherGroup.trim()
+      ? includeOtherGroup.split(":").flatMap((item) => item.split(",")).map((v) => v.trim()).filter(Boolean)
+      : [];
+
     if (includeAll) {
       members.push(...proxyNames);
     }
 
-    const includeOtherGroup = group.options["include-other-group"];
-    if (typeof includeOtherGroup === "string" && includeOtherGroup.trim()) {
-      for (const ref of includeOtherGroup.split(":").flatMap((item) => item.split(",")).map((v) => v.trim()).filter(Boolean)) {
-        members.push(ref);
-        members.push(...resolveGroupMembers(ref, new Set(stack)));
-      }
+    for (const ref of includeOtherGroups) {
+      members.push(ref);
     }
 
     const regexFilter = typeof group.options["policy-regex-filter"] === "string"
@@ -287,9 +288,18 @@ function surgeGroupsToClash(lines: string[], proxyNames: string[]): GroupLike[] 
 
     if (regexFilter) {
       const preserved = members.filter((item) => ["DIRECT", "REJECT"].includes(item) || groupsByName.has(item));
-      const candidateNodes = unique([...members, ...proxyNames]).filter((item) => proxyNames.includes(item));
-      const filteredNodes = candidateNodes.filter((name) => regexFilter.test(name));
-      members = [...preserved, ...filteredNodes];
+      const explicitNodes = members.filter((item) => proxyNames.includes(item));
+
+      if (includeOtherGroups.length > 0) {
+        members = [...preserved, ...explicitNodes];
+      } else {
+        const filteredNodes = unique(proxyNames).filter((name) => {
+          if (!regexFilter.test(name)) return false;
+          if (includeAll) return true;
+          return !explicitNodes.includes(name);
+        });
+        members = [...preserved, ...explicitNodes, ...filteredNodes];
+      }
     }
 
     members = unique(members);
