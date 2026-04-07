@@ -1,44 +1,66 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useMemo, useState } from "react";
+import { ChangeEvent, DragEvent, useEffect, useState } from "react";
 import styles from "./page.module.css";
 
-type TargetFormat = "clash" | "surge";
+type ConfigFormat = "clash" | "surge";
+
+function detectSourceFormat(file: File, content: string): ConfigFormat | null {
+  const lowerName = file.name.toLowerCase();
+  if (lowerName.endsWith(".yaml") || lowerName.endsWith(".yml")) return "clash";
+  if (lowerName.endsWith(".conf")) return "surge";
+
+  const lower = content.toLowerCase();
+  if (lower.includes("[proxy]") || lower.includes("[proxy group]") || lower.includes("[rule]")) return "surge";
+  if (lower.includes("proxy-groups:") || lower.includes("proxies:") || lower.includes("rules:")) return "clash";
+  return null;
+}
+
+function nextTargetFormat(source: ConfigFormat): ConfigFormat {
+  return source === "clash" ? "surge" : "clash";
+}
 
 export default function Home() {
   const [file, setFile] = useState<File | null>(null);
-  const [target, setTarget] = useState<TargetFormat>("surge");
   const [output, setOutput] = useState("");
   const [downloadName, setDownloadName] = useState("converted.conf");
   const [downloadMime, setDownloadMime] = useState("text/plain;charset=utf-8");
+  const [downloadUrl, setDownloadUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [isDragOver, setIsDragOver] = useState(false);
 
-  const downloadUrl = useMemo(() => {
-    if (!output) return "";
-    return URL.createObjectURL(new Blob([output], { type: downloadMime }));
+  useEffect(() => {
+    if (!output) {
+      setDownloadUrl("");
+      return;
+    }
+    const url = URL.createObjectURL(new Blob([output], { type: downloadMime }));
+    setDownloadUrl(url);
+    return () => URL.revokeObjectURL(url);
   }, [output, downloadMime]);
 
-  const onFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const nextFile = event.target.files?.[0] || null;
+  const onFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const nextFile = event.target.files?.[0];
+    if (!nextFile) return;
+    await convertFile(nextFile);
+  };
+
+  const convertFile = async (nextFile: File) => {
     setFile(nextFile);
     setError("");
     setOutput("");
-  };
-
-  const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!file) {
-      setError("先选一个 Surge 或 Clash 配置文件。");
-      return;
-    }
-
     setLoading(true);
-    setError("");
 
     try {
+      const content = await nextFile.text();
+      const source = detectSourceFormat(nextFile, content);
+      if (!source) {
+        throw new Error("无法识别配置格式，只支持 Clash YAML 或 Surge INI。");
+      }
+      const target = nextTargetFormat(source);
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", nextFile);
       formData.append("target", target);
 
       const response = await fetch("/api/convert", {
@@ -51,7 +73,7 @@ export default function Home() {
         throw new Error(data.error || "转换失败");
       }
 
-      setOutput(data.output);
+      setOutput(data.output || "");
       setDownloadName(data.filename || (target === "clash" ? "converted.yaml" : "converted.conf"));
       setDownloadMime(data.mimeType || (target === "clash" ? "application/x-yaml;charset=utf-8" : "text/plain;charset=utf-8"));
     } catch (err) {
@@ -62,49 +84,63 @@ export default function Home() {
     }
   };
 
+  const onDrop = async (event: DragEvent<HTMLLabelElement>) => {
+    event.preventDefault();
+    setIsDragOver(false);
+    const dropped = event.dataTransfer.files?.[0];
+    if (!dropped) return;
+    await convertFile(dropped);
+  };
+
+  const isAfterConvert = Boolean(output && downloadUrl);
+  const hintText = loading ? "Converting..." : "Drop your Clash/Surge config file here.";
+
   return (
     <div className={styles.page}>
       <main className={styles.main}>
-        <section className={styles.hero}>
-          <h1>订阅配置互转</h1>
-          <p>上传一个 Surge 或 Clash 配置文件，网页负责在两者之间做最小转换。</p>
+        <h1 className={styles.title}>SubConverter</h1>
+
+        <section className={styles.card}>
+          <label
+            className={`${styles.dropFrame} ${isDragOver ? styles.dragOver : ""}`}
+            onDragOver={(event) => {
+              event.preventDefault();
+              setIsDragOver(true);
+            }}
+            onDragLeave={() => setIsDragOver(false)}
+            onDrop={onDrop}
+          >
+            <input
+              type="file"
+              accept=".conf,.yaml,.yml,.txt,text/plain,application/x-yaml,text/yaml"
+              onChange={onFileChange}
+              disabled={loading}
+            />
+            {isAfterConvert ? (
+              <>
+                <div className={styles.fileStack}>
+                  <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.fileIcon}>
+                    <path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+                    <path d="M14 2v6h6" />
+                  </svg>
+                  <p className={styles.filename}>{file?.name || "filename.config"}</p>
+                </div>
+                <a
+                  className={styles.downloadButton}
+                  href={downloadUrl}
+                  download={downloadName}
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  Download
+                </a>
+              </>
+            ) : (
+              <p className={styles.hint}>{hintText}</p>
+            )}
+          </label>
         </section>
 
-        <form className={styles.card} onSubmit={onSubmit}>
-          <label className={styles.uploadBox}>
-            <span>选择配置文件</span>
-            <input type="file" accept=".conf,.yaml,.yml,.txt,text/plain,application/x-yaml,text/yaml" onChange={onFileChange} />
-            <strong>{file ? file.name : "点击选择文件"}</strong>
-          </label>
-
-          <div className={styles.controls}>
-            <label>
-              输出格式
-              <select value={target} onChange={(e) => setTarget(e.target.value as TargetFormat)}>
-                <option value="surge">Surge</option>
-                <option value="clash">Clash</option>
-              </select>
-            </label>
-
-            <button className={styles.primary} type="submit" disabled={loading}>
-              {loading ? "转换中..." : "开始转换"}
-            </button>
-          </div>
-        </form>
-
         {error ? <p className={styles.error}>{error}</p> : null}
-
-        {output ? (
-          <section className={styles.result}>
-            <div className={styles.resultHeader}>
-              <h2>转换结果</h2>
-              <a className={styles.secondary} href={downloadUrl} download={downloadName}>
-                下载文件
-              </a>
-            </div>
-            <pre>{output}</pre>
-          </section>
-        ) : null}
       </main>
     </div>
   );

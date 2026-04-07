@@ -1,0 +1,220 @@
+{
+  "version": "2.10",
+  "children": [
+    {
+      "type": "frame",
+      "id": "bi8Au",
+      "x": 4,
+      "y": 4.5,
+      "name": "Default",
+      "clip": true,
+      "width": 455,
+      "height": 591,
+      "fill": "#F8FAFC",
+      "layout": "vertical",
+      "gap": 24,
+      "padding": [
+        40,
+        48
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "children": [
+        {
+          "type": "text",
+          "id": "7LWw1",
+          "name": "title",
+          "fill": "#0F172A",
+          "textGrowth": "fixed-width",
+          "width": "fill_container",
+          "content": "SubConverter",
+          "textAlign": "center",
+          "fontFamily": "Geist",
+          "fontSize": 32,
+          "letterSpacing": -0.32
+        },
+        {
+          "type": "frame",
+          "id": "sYHJL",
+          "name": "card",
+          "width": "fill_container",
+          "height": "fill_container",
+          "fill": "#FFFFFF",
+          "cornerRadius": 14,
+          "stroke": {
+            "thickness": 1,
+            "fill": "#E2E8F0"
+          },
+          "layout": "vertical",
+          "gap": 20,
+          "padding": 16,
+          "justifyContent": "center",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "4l7YA",
+              "name": "Frame 1",
+              "clip": true,
+              "width": "fill_container",
+              "height": "fill_container",
+              "cornerRadius": 8,
+              "stroke": {
+                "thickness": 1,
+                "fill": "#0000001a"
+              },
+              "layout": "vertical",
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "GeFlW",
+                  "name": "uploadHint",
+                  "fill": "#64748B",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Drop your Clash/Surge config file here.",
+                  "textAlign": "center",
+                  "fontFamily": "Inter",
+                  "fontSize": 13,
+                  "fontWeight": "normal"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "GLGrW",
+      "x": 499,
+      "y": 4.5,
+      "name": "AfterConvert",
+      "clip": true,
+      "width": 455,
+      "height": 591,
+      "fill": "#F8FAFC",
+      "layout": "vertical",
+      "gap": 24,
+      "padding": [
+        40,
+        48
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "children": [
+        {
+          "type": "text",
+          "id": "W26CC",
+          "name": "title",
+          "fill": "#0F172A",
+          "textGrowth": "fixed-width",
+          "width": "fill_container",
+          "content": "SubConverter",
+          "textAlign": "center",
+          "fontFamily": "Geist",
+          "fontSize": 32,
+          "letterSpacing": -0.32
+        },
+        {
+          "type": "frame",
+          "id": "KI0Ns",
+          "name": "card",
+          "width": "fill_container",
+          "height": "fill_container",
+          "fill": "#FFFFFF",
+          "cornerRadius": 14,
+          "stroke": {
+            "thickness": 1,
+            "fill": "#E2E8F0"
+          },
+          "layout": "vertical",
+          "gap": 20,
+          "padding": 16,
+          "justifyContent": "center",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "GqPeT",
+              "name": "Frame 1",
+              "clip": true,
+              "width": "fill_container",
+              "height": "fill_container",
+              "cornerRadius": 8,
+              "stroke": {
+                "thickness": 1,
+                "fill": "#0000001a"
+              },
+              "layout": "vertical",
+              "gap": 32,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "group",
+                  "id": "3rY52",
+                  "layout": "vertical",
+                  "gap": 16,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon_font",
+                      "id": "0fPKp",
+                      "name": "fileIcon",
+                      "width": 28,
+                      "height": 28,
+                      "iconFontName": "file",
+                      "iconFontFamily": "lucide",
+                      "fill": "#94A3B8"
+                    },
+                    {
+                      "type": "text",
+                      "id": "evFhf",
+                      "name": "uploadHint",
+                      "fill": "#64748B",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "filename.config",
+                      "textAlign": "center",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "id": "Oeirp",
+                  "type": "ref",
+                  "ref": "O:C3KOZ",
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "y": 234.5,
+                  "x": 105.5,
+                  "descendants": {
+                    "O:RO4Ll": {
+                      "x": 24,
+                      "y": 8,
+                      "enabled": false
+                    },
+                    "O:NEMHS": {
+                      "x": 24,
+                      "y": 8,
+                      "content": "Download"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "imports": {
+    "O": "pencil:shadcn.lib.pen"
+  }
+}
