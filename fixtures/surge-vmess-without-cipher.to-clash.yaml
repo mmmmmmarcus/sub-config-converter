@@ -1,0 +1,29 @@
+allowLan: false
+mode: rule
+logLevel: info
+ipv6: true
+proxies:
+  - name: NodeV
+    type: vmess
+    server: example.server.test
+    port: 443
+    uuid: SANITIZED-UUID
+    network: ws
+    ws-opts:
+      path: /ws
+      headers:
+        Host: example.com
+    alterId: 0
+    vmess-aead: true
+    tls: true
+    skip-cert-verify: true
+    servername: example.com
+    sni: example.com
+    cipher: auto
+proxy-groups:
+  - name: Proxy
+    type: select
+    proxies:
+      - NodeV
+rules:
+  - MATCH,Proxy

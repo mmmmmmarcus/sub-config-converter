@@ -250,6 +250,10 @@ function surgeProxyLineToClash(line: string): ProxyLike {
     proxy[key] = coerceScalar(value);
   }
 
+  if (type === "vmess" && !proxy.cipher) {
+    proxy.cipher = "auto";
+  }
+
   return proxy;
 }
 

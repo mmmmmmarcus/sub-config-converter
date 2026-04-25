@@ -14,11 +14,23 @@ const cases = [
   ["clash-minimal.yaml", "surge", "clash-minimal.to-surge.conf"],
   ["surge-realistic.sanitized.conf", "clash", "surge-realistic.to-clash.yaml"],
   ["clash-realistic.sanitized.yaml", "surge", "clash-realistic.to-surge.conf"],
+  ["surge-vmess-without-cipher.conf", "clash", "surge-vmess-without-cipher.to-clash.yaml"],
 ];
 
 for (const [inputFile, target, outputFile] of cases) {
   const input = fs.readFileSync(path.join(fixturesDir, inputFile), "utf8");
   const output = convertConfig(input, target);
-  fs.writeFileSync(path.join(outDir, outputFile), output);
+  const outputPath = path.join(outDir, outputFile);
+  const expectedPath = path.join(fixturesDir, outputFile);
+
+  fs.writeFileSync(outputPath, output);
+
+  if (fs.existsSync(expectedPath)) {
+    const expected = fs.readFileSync(expectedPath, "utf8");
+    if (output !== expected) {
+      throw new Error(`fixture mismatch: ${inputFile} -> ${outputFile}`);
+    }
+  }
+
   console.log(`ok: ${inputFile} -> ${outputFile}`);
 }
