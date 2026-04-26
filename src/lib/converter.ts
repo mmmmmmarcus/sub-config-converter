@@ -247,11 +247,26 @@ function surgeProxyLineToClash(line: string): ProxyLike {
       continue;
     }
 
+    if (type === "trojan") {
+      if (key === "sni") {
+        proxy.sni = value;
+      } else {
+        proxy[key] = coerceScalar(value);
+      }
+      continue;
+    }
+
     proxy[key] = coerceScalar(value);
   }
 
-  if (type === "vmess" && !proxy.cipher) {
-    proxy.cipher = "auto";
+  if (type === "vmess") {
+    if (!proxy.cipher) proxy.cipher = "auto";
+    if (proxy.alterId === undefined) proxy.alterId = 0;
+    proxy.udp = true;
+  }
+
+  if (type === "trojan") {
+    proxy.udp = true;
   }
 
   return proxy;
@@ -433,7 +448,10 @@ function surgeRuleToClashLine(rule: string): string {
   ]);
 
   if (unsupportedTypes.has(ruleType)) return "";
-  if (cleaned.startsWith("FINAL,")) return cleaned.replace(/^FINAL,/, "MATCH,");
+  if (cleaned.startsWith("FINAL,")) {
+    const [, policy] = splitCsvLike(cleaned);
+    return `MATCH,${policy || "DIRECT"}`;
+  }
   return cleaned;
 }
 

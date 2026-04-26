@@ -63,18 +63,22 @@ These should be preserved as comments / metadata when possible, but not treated 
 - `password` -> `password`
 - `sni` -> `sni`
 - `skip-cert-verify` -> `skip-cert-verify`
+- default `udp: true` for broader Clash/Mihomo import compatibility
 - `server` / `port` -> same names
 
 #### VMess
 - `username` -> `uuid`
 - `encrypt-method` -> `cipher`
+- missing / unsupported vmess cipher -> normalize to `cipher: auto`
 - `ws=true` -> `network: ws`
 - `ws-path` -> `ws-opts.path`
 - `ws-headers=Host:"x"` -> `ws-opts.headers.Host: x`
 - `tls=true` -> `tls: true`
-- `sni` -> `servername` (or `sni` if needed for compatibility)
+- `sni` -> emit both `sni` and `servername` when useful for compatibility
 - `skip-cert-verify` -> `skip-cert-verify`
-- `vmess-aead=true` -> `alterId: 0` + preserve AEAD semantics if possible
+- default `alterId: 0`
+- default `udp: true` for broader Clash/Mihomo import compatibility
+- `vmess-aead=true` -> preserve flag and ensure `alterId: 0`
 
 ### Clash -> Surge
 
@@ -119,6 +123,7 @@ These should be preserved as comments / metadata when possible, but not treated 
 
 ### Final fallback
 - Surge `FINAL,Policy,...` -> Clash `MATCH,Policy`
+- Ignore extra Surge tail flags after `FINAL` (example: `dns-failed`) because they can break Clash import
 - Clash `MATCH,Policy` -> Surge `FINAL,Policy`
 
 ## Real-sample notes
@@ -127,6 +132,7 @@ Based on the provided real files:
 - The Surge file contains sensitive node credentials and certificate material; do not commit it.
 - The Clash file contains remote provider URLs; do not commit it.
 - Tests should use sanitized fixtures only.
+- Real-world Clash compatibility needs are stricter than field-name parity; prefer importable output over preserving every Surge nuance.
 
 ## Immediate implementation plan
 1. Upgrade parser to understand `name = type, host, port, key=value...`

@@ -20,6 +20,7 @@ proxies:
     servername: example.com
     sni: example.com
     cipher: auto
+    udp: true
 proxy-groups:
   - name: Proxy
     type: select

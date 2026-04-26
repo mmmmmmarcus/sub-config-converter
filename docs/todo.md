@@ -1,15 +1,19 @@
 # TODO
 
 ## Phase 1 - Core correctness
-- [ ] Parse Surge proxy lines with `=` correctly
-- [ ] Parse Surge vmess `username` -> Clash `uuid`
-- [ ] Parse Surge ws fields into Clash `network` + `ws-opts`
-- [ ] Parse Surge trojan tls/sni/skip-cert-verify
-- [ ] Convert Clash vmess back to Surge vmess fields
-- [ ] Convert Clash ss cipher -> Surge encrypt-method
-- [ ] Convert Clash groups `select` / `url-test`
-- [ ] Convert Surge `smart` as downgraded Clash `select`
-- [ ] Convert Surge `FINAL` <-> Clash `MATCH`
+- [x] Parse Surge proxy lines with `=` correctly
+- [x] Parse Surge vmess `username` -> Clash `uuid`
+- [x] Parse Surge ws fields into Clash `network` + `ws-opts`
+- [x] Parse Surge trojan tls/sni/skip-cert-verify
+- [x] Convert Clash vmess back to Surge vmess fields
+- [x] Convert Clash ss cipher -> Surge encrypt-method
+- [x] Convert Clash groups `select` / `url-test`
+- [x] Convert Surge `smart` as downgraded Clash `select`
+- [x] Convert Surge `FINAL` <-> Clash `MATCH`
+- [x] Default Clash vmess `alterId: 0` / `cipher: auto` / `udp: true` when needed for importability
+- [x] Default Clash trojan `udp: true`
+- [x] Filter unsupported Surge `USER-AGENT` rules from Clash output
+- [x] Drop unsupported `FINAL` tail flags like `dns-failed` in Clash output
 
 ## Phase 2 - Safer degradation
 - [ ] Preserve unsupported sections as comment blocks in output metadata header
